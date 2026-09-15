@@ -20,7 +20,7 @@ class MenuPoint{
     bool shiftRight = true;
     bool selected = false;
   public:
-    MenuPoint(String text, bool s, int pause=5000){
+    MenuPoint(String text="Menupoint", bool s=false, int pause=5000){
       fullText = text;
       shiftText(0);
       selected = s;
@@ -34,12 +34,24 @@ class MenuPoint{
       selected = s;
       selectTime = millis();
     }
+
+    /*
+     * Sets the display text to the portion of the full text
+     * starting at the startindex (the character at startIndex
+     * is the leftmost character on the display).
+    */
     void shiftText(int startIndex){
-      if (startIndex > fullText.length() - 1){ // bound the Index to the lenght of the String
+      if (startIndex > fullText.length() - 1){ // bind the Index to the lenght of the String
         startIndex = fullText.length() - 1;
       }
       subString(shownText, fullText.c_str(), startIndex, 16);
     }
+
+    /*
+     * Function for updating a menupoint. If enough time for a scroll
+     * has passed, it will scroll the Text on the next call.
+     * Non-blocking - should be called in a loop.
+     */
     void show(int row){
       lcd.setCursor(0, row);
       if (selected && fullText.length() > 16 && iterations * (long)750 + scrollPause < millis() - selectTime){
@@ -47,7 +59,7 @@ class MenuPoint{
         iterations++;
         if (currentIndex == fullText.length() - 16){
           shiftRight = false;
-          iterations = 0; // this is so the Scrolling stops at the end
+          iterations = 0; // this is so the Scrolling stops at the end (see down below)
           selectTime = millis();
         } else if (currentIndex == 0) {
           shiftRight = true;
@@ -58,10 +70,9 @@ class MenuPoint{
       } else if (!selected){
         shiftText(0);
       }
-      // Serial.println("I should show the Text");
       lcd.print(shownText);
     }
-    void debug(){
+    /*void debug(){
       Serial.println(currentIndex);
       Serial.println(iterations);
       Serial.println(selectTime);
@@ -72,11 +83,8 @@ class MenuPoint{
       Serial.println(shiftRight);
       Serial.println(selected);
       Serial.println("------------------");
-    }
+    }*/
 };
-
-MenuPoint point("Hello, World! This is a test", true);
-unsigned long waitTime = 0;
 
 void setup() {
   // put your setup code here, to run once:
@@ -87,12 +95,5 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
-  if (Serial.available()){
-    point.setText(Serial.readString());
-  }
-  point.show(0);
-  /*if (millis() - waitTime > 750){
-    point.debug();
-    waitTime = millis();
-  }*/
+  
 }
