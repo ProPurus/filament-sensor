@@ -5,10 +5,13 @@
 
 using std::vector;
 
-LiquidCrystal_I2C lcd(0x27,16,2);
-const int PinCLK = 2;
-const int PinDT = 3;
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+const int PinCLK = 18;
+const int PinDT = 19;
 const int PinSW = 4;
+
+const int rfidResetPin = 22;
+const MFRC522 rfidReaders[] = {MFRC522(13, rfidResetPin), MFRC522(14, rfidResetPin), MFRC522(16, rfidResetPin), MFRC522(17, rfidResetPin)};
 
 volatile bool TurnDetected = false;
 volatile bool rotationdirection = false;
@@ -51,10 +54,10 @@ String stringInput(){
     lcd.setCursor(0, 0);
     lcd.print(displayString);
     lcd.print(chars[index]);
-    if (digitalRead(PinSW) && chars[index] != '@'){
+    if (!digitalRead(PinSW) && chars[index] != '@'){
       result += chars[index];
       delay(250);
-    } else if (digitalRead(PinSW) && chars[index] == '@'){
+    } else if (!digitalRead(PinSW) && chars[index] == '@'){
       delay(250);
       return result;
     }
@@ -91,7 +94,7 @@ int intInput(String infotext, bool percentage=false, int startvalue=0){
 }
 
 class MenuPoint{
-  private:
+  protected:
     int currentIndex = 0;
     int iterations = 0;
     int scrollPause;
@@ -139,6 +142,8 @@ class MenuPoint{
      */
     void show(int row){
       lcd.setCursor(0, row);
+      lcd.print("                ");
+      lcd.setCursor(0, row);
       if (selected && fullText.length() > 16 && iterations * (long)750 + scrollPause < millis() - selectTime){
         shiftText(currentIndex);
         iterations++;
@@ -157,19 +162,93 @@ class MenuPoint{
       }
       lcd.print(shownText);
     }
-    /*void debug(){
-      Serial.println(currentIndex);
-      Serial.println(iterations);
-      Serial.println(selectTime);
-      Serial.println(fullText);
-      Serial.println(fullText.c_str());
-      Serial.println(fullText.length());
-      Serial.println(shownText);
-      Serial.println(shiftRight);
-      Serial.println(selected);
-      Serial.println("------------------");
-    }*/
 };
+
+
+class Filament : public MenuPoint {
+  public:
+    int filamentNumber;
+    int turnsPerLayer;
+    int fullSpoolWeight;
+    double remainingFilamentPercentage;
+    int rotationCount = 0;
+    unsigned long lastDetectedAt = 0;
+    double spoolRadius = 100;
+    double filamentDiameter = 1.75;
+    double filamentDensity = 0.00124; // PLA density in g/mm^3
+
+    Filament(
+      String text,
+      bool selected = false,
+      int pause = 5000,
+      int number = 0,
+      int turns = 28,
+      int weight = 1000,
+      double remainingPercentage = 100.0,
+      double radius = 90
+    ) : MenuPoint(text, selected, pause) {
+      filamentNumber = number;
+      turnsPerLayer = turns;
+      fullSpoolWeight = weight;
+      remainingFilamentPercentage = remainingPercentage;
+      spoolRadius = radius;
+    }
+
+    /*
+    bool checkRotation(int waitTime) {
+      // Checks whether the spool's RFID tag is present at the corresponding reader.
+      if (millis() - lastDetectedAt < waitTime) {
+        return false;
+      }
+
+      if (rfidReaders[filamentNumber - 1].PICC_IsNewCardPresent() &&
+          rfidReaders[filamentNumber - 1].PICC_ReadCardSerial()) {
+        rfidReaders[filamentNumber - 1].PICC_HaltA();
+        lastDetectedAt = millis();
+        return true;
+      }
+
+      return false;
+    }
+    */
+
+    /**
+     * Calculates the filament mass consumed by one spool rotation
+     * and updates the remaining filament percentage.
+     *
+     * @param calculateOnly If true, returns the fraction of the full spool
+     *                      weight consumed without updating the percentage.
+     * @return The consumed mass as a fraction of the full spool weight
+     *         when calculateOnly is true.
+     */
+    double consumeOneRotation(bool calculateOnly = false) {
+      double currentFilamentRadius = spoolRadius - (int(rotationCount / turnsPerLayer) * filamentDiameter); // Distance from the spool center to the outermost filament layer.
+      double filamentLength = 2 * PI * currentFilamentRadius; // Length of filament unwound in one rotation.
+      double filamentMass = PI * sq(filamentDiameter / 2) * filamentLength * filamentDensity; // Mass of the filament consumed during one rotation.
+
+      rotationCount++;
+      double consumedFraction = filamentMass / fullSpoolWeight;
+      
+      if (calculateOnly) {
+        return consumedFraction;
+      }
+      remainingFilamentPercentage -= consumedFraction;
+      return consumedFraction;
+    }
+
+    /*
+     * Reconstructs the rotation count based on the remaining filament
+     * percentage by simulating rotations from a full spool.
+     */
+    void calculateRotationCount() {
+      double simulatedRemainingPercentage = 100.0;
+      rotationCount = 0;
+      while (simulatedRemainingPercentage >= remainingFilamentPercentage) {
+        simulatedRemainingPercentage -= consumeOneRotation(true);
+      }
+    }
+};
+
 
 template <typename T>
 class Menu{
@@ -189,7 +268,7 @@ class Menu{
     void addFilament(){
       T temp = menus.at(0).at(menus.at(0).size() - 1);
       menus.at(0).pop_back();
-      menus.at(0).push_back(MenuPoint(stringInput()));
+      menus.at(0).push_back(T(stringInput()));
       menus.at(0).push_back(temp);
     }
 
@@ -211,15 +290,12 @@ class Menu{
         } else if (!rotationdirection && currentLocation[1] > 0){
           currentLocation[1]--;
         }
+        TurnDetected = false;
       }
       // press inputs
       if (isPressed()){
         delay(200);
-        for (vector<T>& submenu : menus){
-          for (T& menuPoint : submenu){
-            menuPoint.onPress();
-          }
-        }
+        menus.at(currentLocation[0]).at(currentLocation[1]).onPress();
       }
       // update which menupoint is selected
       resetSelectedPoints();
@@ -246,12 +322,17 @@ class Menu{
     }
 };
 
+Menu<MenuPoint> menu;
+
 void setup() {
   // put your setup code here, to run once:
+  pinMode(PinDT, INPUT_PULLUP);
+  pinMode(PinCLK, INPUT_PULLUP);
+  pinMode(PinSW, INPUT_PULLUP);
   lcd.init();
   lcd.backlight();
-  Serial.begin(9600);
-  attachInterrupt(digitalPinToInterrupt(2), isr, CHANGE);
+  Serial.begin(921600);
+  attachInterrupt(digitalPinToInterrupt(PinCLK), isr, CHANGE);
 }
 
 void loop() {
