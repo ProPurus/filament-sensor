@@ -256,9 +256,12 @@ class Menu{
     vector<vector<T>> menus;
     int currentLocation[2] = {0, 0};
   public:
-    Menu(){
-      menus.push_back({T("Add Filament", true)});
-      menus.push_back({T("Change Name"), T("Change Percentage"), T("Change Base Value"), T("Swap Filaments"), T("Return")});
+    Menu(vector<vector<T>> subMenus){
+      for (vector<T> subMenu : subMenus){
+        menus.push_back(subMenu);
+      }
+      // menus.push_back({T("Add Filament", true)});
+      // menus.push_back({T("Change Name"), T("Change Percentage"), T("Change Base Value"), T("Swap Filaments"), T("Return")});
     }
 
     bool isPressed(){
@@ -322,7 +325,9 @@ class Menu{
     }
 };
 
-Menu<MenuPoint> menu;
+Menu<MenuPoint> menu({{MenuPoint("Add Filament", true)},
+                      {MenuPoint("Change Name"), MenuPoint("Change Percentage"), MenuPoint("Change Base Value"), MenuPoint("Swap Filaments"), MenuPoint("Return")}
+                      });
 
 void setup() {
   // put your setup code here, to run once:
