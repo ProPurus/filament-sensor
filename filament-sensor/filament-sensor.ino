@@ -11,7 +11,7 @@ const int PinDT = 19;
 const int PinSW = 4;
 
 const int rfidResetPin = 22;
-const MFRC522 rfidReaders[] = {MFRC522(13, rfidResetPin), MFRC522(14, rfidResetPin), MFRC522(16, rfidResetPin), MFRC522(17, rfidResetPin)};
+MFRC522 rfidReaders[] = {MFRC522(13, rfidResetPin), MFRC522(14, rfidResetPin), MFRC522(16, rfidResetPin), MFRC522(17, rfidResetPin)};
 
 volatile bool TurnDetected = false;
 volatile bool rotationdirection = false;
@@ -167,7 +167,7 @@ class MenuPoint{
 
 class Filament : public MenuPoint {
   public:
-    int filamentNumber;
+    int readerNumber;
     int turnsPerLayer;
     int fullSpoolWeight;
     double remainingFilamentPercentage;
@@ -187,30 +187,34 @@ class Filament : public MenuPoint {
       double remainingPercentage = 100.0,
       double radius = 90
     ) : MenuPoint(text, selected, pause) {
-      filamentNumber = number;
+      readerNumber = number;
       turnsPerLayer = turns;
       fullSpoolWeight = weight;
       remainingFilamentPercentage = remainingPercentage;
       spoolRadius = radius;
     }
 
-    /*
+    /**
+     * Checks if rfid card of the filament spool is present
+     *
+     * @param waitTime If the last call was done before waitTime is over, the
+     *                 Methode will always return false.
+     * @return whether a card is present (the spool has rotated) or not
+    */
     bool checkRotation(int waitTime) {
       // Checks whether the spool's RFID tag is present at the corresponding reader.
       if (millis() - lastDetectedAt < waitTime) {
         return false;
       }
 
-      if (rfidReaders[filamentNumber - 1].PICC_IsNewCardPresent() &&
-          rfidReaders[filamentNumber - 1].PICC_ReadCardSerial()) {
-        rfidReaders[filamentNumber - 1].PICC_HaltA();
+      if (rfidReaders[readerNumber - 1].PICC_IsNewCardPresent() && rfidReaders[readerNumber - 1].PICC_ReadCardSerial()) {
+        rfidReaders[readerNumber - 1].PICC_HaltA();
         lastDetectedAt = millis();
         return true;
       }
 
       return false;
     }
-    */
 
     /**
      * Calculates the filament mass consumed by one spool rotation
@@ -260,8 +264,6 @@ class Menu{
       for (vector<T> subMenu : subMenus){
         menus.push_back(subMenu);
       }
-      // menus.push_back({T("Add Filament", true)});
-      // menus.push_back({T("Change Name"), T("Change Percentage"), T("Change Base Value"), T("Swap Filaments"), T("Return")});
     }
 
     bool isPressed(){
@@ -325,9 +327,8 @@ class Menu{
     }
 };
 
-Menu<MenuPoint> menu({{MenuPoint("Add Filament", true)},
-                      {MenuPoint("Change Name"), MenuPoint("Change Percentage"), MenuPoint("Change Base Value"), MenuPoint("Swap Filaments"), MenuPoint("Return")}
-                      });
+Menu<renderablePoints> menu({{MenuPoint("Add Filament", true)},
+                      {MenuPoint("Change Name"), MenuPoint("Change Percentage"), MenuPoint("Change Base Value"), MenuPoint("Swap Filaments"), MenuPoint("Return")}});
 
 void setup() {
   // put your setup code here, to run once:

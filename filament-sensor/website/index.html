@@ -1,26 +1,74 @@
-<html>
-    <head>
-        <title>Filament Sensor</title>
-    </head>
-    <body>
-        <div id="topbar" style="height: 5%; display: flex; justify-content: space-between;">
-            <p id="name">name</p>
-            <p id="clock">current time</p>
-        </div>
-        <div id="window">
-            <div id="sidebar" style="width: 20%; height: 95%; display: flex; flex-direction: column; justify-content: center; align-items: center;">
-                <div id="overviewbutton">
-                    <h2 style="border: 5px solid black; border-radius: 15px;">Overview</h2>
-                </div>
-                <div id="filamentsbutton">
-                    <h3 style="border: 5px solid black; border-radius: 15px;">Filaments</h3>
-                </div>
-            </div>
-            <div id="mainwindow">
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f7f8f6">
+    <title>Filament Sensor</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-shell">
+        <aside class="sidebar" aria-label="Main navigation">
+            <div class="brand-mark" aria-hidden="true">F<span>.</span></div>
+            <nav class="nav-list">
+                <button class="nav-item active" id="overviewbutton" type="button" data-view="overview" aria-current="page">
+                    <span class="nav-icon" aria-hidden="true">◫</span><span>Overview</span>
+                </button>
+                <button class="nav-item" id="filamentsbutton" type="button" data-view="filaments">
+                    <span class="nav-icon spool-icon" aria-hidden="true">◎</span><span>Filaments</span>
+                </button>
+            </nav>
+            <div class="sidebar-footer"><span class="status-dot"></span> System online</div>
+        </aside>
 
-            </div>
-        </div>
+        <main class="main-area">
+            <header class="topbar">
+                <div class="page-heading">
+                    <p class="eyebrow">FILAMENT SENSOR</p>
+                    <h1 id="page-title">Overview</h1>
+                </div>
+                <div class="header-meta">
+                    <div class="connection"><span class="status-dot"></span><span>Connected</span></div>
+                    <time id="clock">--:--</time>
+                    <div class="avatar" aria-label="User">N</div>
+                </div>
+            </header>
 
-        <script src="script.js"></script>
-    </body>
+            <section class="view active" id="overview-view" aria-labelledby="page-title">
+                <div class="welcome-row">
+                    <div><p class="eyebrow">YOUR SETUP</p><h2>Filament overview</h2><p class="muted">A quick look at your active spools and sensor status.</p></div>
+                    <div class="date-chip"><span class="mini-icon">◷</span><span id="date">Loading date</span></div>
+                </div>
+
+                <div class="summary-grid">
+                    <article class="card summary-card"><div class="card-top"><span class="card-label">ACTIVE SPOOL</span><span class="icon-tile violet">◎</span></div><div class="metric">Spool 01</div><div class="card-foot"><span class="small-dot violet-dot"></span> PLA · White</div></article>
+                    <article class="card summary-card"><div class="card-top"><span class="card-label">REMAINING</span><span class="icon-tile blue">⌁</span></div><div class="metric">720 <small>g</small></div><div class="progress-track"><span style="width:72%"></span></div><div class="card-foot">72% of 1,000 g</div></article>
+                    <article class="card summary-card"><div class="card-top"><span class="card-label">SENSOR STATUS</span><span class="icon-tile green">⌁</span></div><div class="metric status-metric"><span class="status-dot"></span>Ready</div><div class="card-foot">All sensors reporting</div></article>
+                </div>
+
+                <div class="section-heading"><div><p class="eyebrow">LIVE STATUS</p><h2>Spool positions</h2></div><span class="live-badge"><span class="status-dot"></span> Live</span></div>
+                <article class="card overview-panel">
+                    <div class="position-header"><div><h3>Current readings</h3><p class="muted">Remaining filament across your sensors</p></div><span class="updated-label">UPDATED JUST NOW</span></div>
+                    <div class="spool-grid" id="overview-spools"></div>
+                </article>
+            </section>
+
+            <section class="view" id="filaments-view" aria-labelledby="page-title" hidden>
+                <div class="welcome-row">
+                    <div><p class="eyebrow">SPOOL MANAGEMENT</p><h2>Your filaments</h2><p class="muted">Review the spools assigned to each sensor position.</p></div>
+                    <button class="primary-button" type="button" id="add-spool"><span>＋</span> Add filament</button>
+                </div>
+                <div class="filament-overview card">
+                    <div class="position-header"><div><p class="eyebrow">SENSOR OVERVIEW</p><h3>Filament positions</h3></div><span class="updated-label">4 POSITIONS</span></div>
+                    <div class="spool-grid large" id="filament-spools"></div>
+                </div>
+                <div class="section-heading list-heading"><div><p class="eyebrow">INVENTORY</p><h2>All filaments</h2></div><span class="muted">6 items</span></div>
+                <div class="card inventory-card"><div class="inventory-head"><span>FILAMENT</span><span>TYPE</span><span>REMAINING</span><span>STATUS</span></div><div id="inventory-list"></div></div>
+            </section>
+            <footer class="main-footer"><span>FILAMENT SENSOR</span><span>Device <b>FS-01</b></span></footer>
+        </main>
+    </div>
+    <script src="script.js"></script>
+</body>
 </html>
