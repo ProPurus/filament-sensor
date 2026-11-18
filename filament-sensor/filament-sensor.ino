@@ -2,8 +2,11 @@
 #include <SPI.h>
 #include <MFRC522.h>
 #include <vector>
+#include <variant>
 
 using std::vector;
+using std::variant;
+using std::visit;
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 const int PinCLK = 18;
@@ -254,14 +257,15 @@ class Filament : public MenuPoint {
 };
 
 
-template <typename T>
+using MenuItem = variant<MenuPoint, Filament>;
+
 class Menu{
   private:
-    vector<vector<T>> menus;
+    vector<vector<MenuItem>> menus;
     int currentLocation[2] = {0, 0};
   public:
-    Menu(vector<vector<T>> subMenus){
-      for (vector<T> subMenu : subMenus){
+    Menu(vector<vector<MenuItem>> subMenus){
+      for (vector<MenuItem> subMenu : subMenus){
         menus.push_back(subMenu);
       }
     }
@@ -270,17 +274,26 @@ class Menu{
       return !digitalRead(PinSW);
     }
 
-    void addFilament(){
-      T temp = menus.at(0).at(menus.at(0).size() - 1);
-      menus.at(0).pop_back();
-      menus.at(0).push_back(T(stringInput()));
-      menus.at(0).push_back(temp);
-    }
+    /**
+     * adds a new point at the given index
+     * @param point the menupoint to be added
+     * @param menu the submenu where the new point is added
+     * @param location the location in the submenu. If empty,
+     *        the new point will just be added to the end.
+     */
+    void addPoint(MenuItem point, int menu, int location = -1) {
+      auto& submenu = menus.at(menu);
+      if (location == -1) {
+        submenu.push_back(point);
+      } else if (location >= 0 && location <= submenu.size()) {
+        submenu.insert(submenu.begin() + location, point);
+      }
+    } 
 
     void resetSelectedPoints(){
-      for (vector<T>& submenu : menus){
-        for (T& menuPoint : submenu){
-          menuPoint.setSelected(false);
+      for (vector<MenuItem>& submenu : menus){
+        for (MenuItem& menuPoint : submenu){
+          visit([](auto& item) { item.setSelected(false); }, menuPoint);
         }
       }
     }
@@ -300,35 +313,35 @@ class Menu{
       // press inputs
       if (isPressed()){
         delay(200);
-        menus.at(currentLocation[0]).at(currentLocation[1]).onPress();
+        visit([](auto& item) { item.onPress(); }, menus.at(currentLocation[0]).at(currentLocation[1]));
       }
       // update which menupoint is selected
       resetSelectedPoints();
-      menus.at(currentLocation[0]).at(currentLocation[1]).setSelected(true);
+      visit([](auto& item) { item.setSelected(true); }, menus.at(currentLocation[0]).at(currentLocation[1]));
     }
 
     /* Renders the correct menupoints on the display*/
     void show(){
-      menus.at(currentLocation[0]).at(currentLocation[1]).show(0);
+      visit([](auto& item) { item.show(0); }, menus.at(currentLocation[0]).at(currentLocation[1]));
       if (menus.at(currentLocation[0]).size() - 1 >= currentLocation[1] + 1){
-        menus.at(currentLocation[0]).at(currentLocation[1] + 1).show(1);
+        visit([](auto& item) { item.show(1); }, menus.at(currentLocation[0]).at(currentLocation[1] + 1));
       }
     }
 
     /* Function to be called in the loop. Updates the whole Menu*/
     void update(){
       registerInputs();
-      for (vector<T>& submenu : menus){
-        for (T& menuPoint : submenu){
-          menuPoint.update();
+      for (vector<MenuItem>& submenu : menus){
+        for (MenuItem& menuPoint : submenu){
+          visit([](auto& item) { item.update(); }, menuPoint);
         }
       }
       show();
     }
 };
 
-Menu<renderablePoints> menu({{MenuPoint("Add Filament", true)},
-                      {MenuPoint("Change Name"), MenuPoint("Change Percentage"), MenuPoint("Change Base Value"), MenuPoint("Swap Filaments"), MenuPoint("Return")}});
+Menu menu({{MenuPoint("Add Filament", true)},
+           {MenuPoint("Change Name"), MenuPoint("Change Percentage"), MenuPoint("Change Base Value"), MenuPoint("Swap Filaments"), MenuPoint("Return")}});
 
 void setup() {
   // put your setup code here, to run once:
