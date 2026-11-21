@@ -25,9 +25,9 @@ const char chars[] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'
 
 void isr(){
   if (digitalRead(PinCLK)){
-    rotationdirection = digitalRead(PinDT);
-  } else {
     rotationdirection = !digitalRead(PinDT);
+  } else {
+    rotationdirection = digitalRead(PinDT);
   }
   TurnDetected = true;
 }
@@ -118,8 +118,10 @@ class MenuPoint{
       fullText.trim();
     }
     void setSelected(bool s){
-      selected = s;
-      selectTime = millis();
+      if (selected != s){
+        selected = s;
+        selectTime = millis();
+      }
     }
 
     /*
@@ -161,6 +163,7 @@ class MenuPoint{
         }
         shiftRight ? currentIndex++ : currentIndex--;
       } else if (!selected){
+        currentIndex = 0;
         shiftText(0);
       }
       lcd.print(shownText);
@@ -290,10 +293,14 @@ class Menu{
       }
     } 
 
-    void resetSelectedPoints(){
-      for (vector<MenuItem>& submenu : menus){
-        for (MenuItem& menuPoint : submenu){
-          visit([](auto& item) { item.setSelected(false); }, menuPoint);
+    void updateSelectedPoints(){
+      for (int i = 0; i < menus.size(); i++){
+        for (int j = 0; j < menus[i].size(); j++){
+          if (i != currentLocation[0] || j != currentLocation[1]){
+            visit([](auto& item) { item.setSelected(false); }, menus[i][j]);
+          } else {
+            visit([](auto& item) { item.setSelected(true); }, menus.at(i).at(j));
+          }
         }
       }
     }
@@ -316,8 +323,7 @@ class Menu{
         visit([](auto& item) { item.onPress(); }, menus.at(currentLocation[0]).at(currentLocation[1]));
       }
       // update which menupoint is selected
-      resetSelectedPoints();
-      visit([](auto& item) { item.setSelected(true); }, menus.at(currentLocation[0]).at(currentLocation[1]));
+      updateSelectedPoints();
     }
 
     /* Renders the correct menupoints on the display*/
@@ -325,6 +331,10 @@ class Menu{
       visit([](auto& item) { item.show(0); }, menus.at(currentLocation[0]).at(currentLocation[1]));
       if (menus.at(currentLocation[0]).size() - 1 >= currentLocation[1] + 1){
         visit([](auto& item) { item.show(1); }, menus.at(currentLocation[0]).at(currentLocation[1] + 1));
+      } else {
+        lcd.setCursor(0, 1);
+        lcd.print("                ");
+        lcd.setCursor(0, 0);
       }
     }
 
